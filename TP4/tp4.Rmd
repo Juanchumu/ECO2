@@ -1,0 +1,191 @@
+---
+title: "TP4 Eco2"
+author: ""
+date: "2025-04-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#importar librerias
+#install.packages("ggplot2") # Solo una vez
+library(ggplot2)
+#install.packages("reticulate")
+library(reticulate)
+use_virtualenv("~/virtual-env")
+library(tibble)
+
+```
+
+
+```{r}
+muestra <-    c(rep(c(1,2,3,4,5,6,7,8),4))
+arbol <-      c(rep(1,32))
+orientacion <-c(rep(c("S","O","S","SO","NE","NE","SE","S"),4))  
+alumno <- c( rep("Juan",8), rep("Facu",8), rep("Francisco",8), rep("Martin",8))
+especie <- c(rep("sp1",16),rep("sp2",16))
+abundancia <- c(1,1,2,2,0,1,1,2,5,4,0,4,0,5,7,3,2,4,1,2,4,0,0,5,2,5,1,2,2,0,0,6)
+
+datos <- tibble(muestra, arbol, orientacion, alumno, especie, abundancia)
+print(datos)
+
+
+```
+
+```{r}
+#datos <- read.delim ("clipboard")
+sp1 <- subset(datos, especie == "sp1")
+sp2 <- subset(datos, especie == "sp2")
+# Exploratorio
+
+#Gràficos
+ggplot(datos, aes(x = orientacion, y = abundancia, fill = orientacion)) +
+  geom_boxplot() +facet_grid(especie ~ alumno) +theme_minimal() +
+  labs(title = "Abundancia por orientación, alumno y especie")
+```
+
+```{r}
+# Modelo GLM con familia Poisson
+modelo_sp1 <- glm(abundancia ~ as.factor(orientacion) * as.factor(alumno),
+                  data = sp1,family = poisson)
+# Ver resumen
+summary(modelo_sp1)
+```
+
+
+```{r}
+# Verificar sobredispersión
+dispersion_sp1 <- sum(residuals(modelo_sp1, type="pearson")^2)/df.residual(modelo_sp1)
+dispersion_sp1 # Si >1.5, usar quasi-Poisson
+
+```
+
+
+```{r}
+# Si hay sobredispersión entonces...
+modelo_sp1_q <- glm(abundancia ~ orientacion * alumno, data = sp1, family = quasipoisson)
+summary(modelo_sp1_q)
+```
+
+```{r}
+#Para sp2
+modelo_sp2 <- glm(abundancia ~ as.factor(orientacion) * as.factor(alumno),
+                  data = sp2,family = poisson)
+summary(modelo_sp2)
+```
+
+
+```{r}
+# Verificar sobredispersión
+dispersion_sp2 <- sum(residuals(modelo_sp2, type ="pearson")^2)/df.residual(modelo_sp2)
+dispersion_sp2 
+# Si >1.5, usar quasi-Poisson
+```
+
+
+```{r}
+#En caso de sobre dispersion
+modelo_sp2_q <- glm(abundancia ~ orientacion * alumno,
+                    data = sp2, family =quasipoisson)
+summary(modelo_sp2_q)
+
+
+```
+
+
+
+
+#### Segunda parte
+
+
+```{r}
+
+
+muestra <-    c(rep(c(1,2,3,4,5,6,7,8),4))
+arbol <-      c(rep(1,32))
+orientacion <-c(rep(c("S","O","S","SO","NE","NE","SE","S"),4))  
+alumno <- c( rep("Juan",8), rep("Facu",8), rep("Francisco",8), rep("Martin",8))
+especie <- c(rep("sp1",16),rep("sp2",16))
+
+sp1 <- c(1,1,2,2,0,1,1,2,5,4,0,4,0,5,7,3,2,4,1,2,4,0,0,5,2,5,1,2,2,0,0,6)
+sp2 <- c(2,4,1,2,4,0,0,5,2,5,1,2,2,0,0,6,1,1,2,2,0,1,1,2,2,0,0,2,0,2,3,4)
+
+datos_wide <- tibble(muestra, arbol, orientacion, alumno, sp1,sp2)
+print(datos_wide)
+
+
+```
+
+```{r}
+
+#Ahora importar la tabla nueva, a la que llamaremos datos_wide
+#datos_wide <- read. delim ("clipboard")
+# Modelo: sp2 en función de sp1, alumno y orientación
+modelo_interes <- glm(sp2 ~ sp1 + as.factor( orientacion)+
+                        as.factor(alumno), data =datos_wide, family = poisson)
+summary(modelo_interes)
+```
+
+
+
+```{r}
+# Verificar sobredispersión
+disp <- sum(residuals(modelo_interes,type= "pearson")^2)/df.residual(modelo_interes)
+disp
+
+```
+
+
+```{r}
+# Si hay sobredispersión:
+modelo_q <- glm(sp2 ~ sp1 + as.factor(orientacion) +
+                  as.factor(alumno), data =datos_wide, family = quasipoisson)
+summary(modelo_q)
+
+```
+
+
+
+```{r}
+# Forzar factores
+str(datos_wide)
+# Forzar que sean factores, si no lo son
+datos_wide$orientacion <- factor(datos_wide$orientacion)
+datos_wide$alumno <- factor(datos_wide$alumno)
+
+# Usar niveles presentes en datos_wide para expand.grid
+nueva_data <- expand.grid(sp1 = seq(min(datos_wide$sp1, na.rm = TRUE),
+                                    max(datos_wide$sp1, na.rm = TRUE), length.out = 100),
+                          orientacion = levels(datos_wide$orientacion),
+                          alumno = levels(datos_wide$alumno))
+
+# Obtener predicciones con IC en escala del link (log)
+predicciones <- predict(modelo_interes, newdata = nueva_data, type = "link", se.fit =TRUE)
+# Calcular ICs (en la escala del link)
+nueva_data$fit_link <- predicciones$fit
+nueva_data$lwr_link <- predicciones$fit - 1.96 * predicciones$se.fit
+nueva_data$upr_link <- predicciones$fit + 1.96 * predicciones$se.fit
+# Transformar a escala de respuesta (exponencial, porque usamos family = poisson)
+nueva_data$fit <- exp(nueva_data$fit_link)
+nueva_data$lwr <- exp(nueva_data$lwr_link)
+nueva_data$upr <- exp(nueva_data$upr_link)
+# Graficar modelos
+
+ggplot(nueva_data, aes(x = sp1, y = fit, color = orientacion, fill = orientacion))+
+  geom_line(size = 1) + geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.3, color = NA) +
+  facet_wrap(~ alumno) +
+  labs(
+    title = "Predicción de abundancia de sp2 según sp1",
+    y = "Abundancia esperada de sp2",
+    x = "Abundancia de sp1"
+    ) +
+  theme_minimal()
+
+
+
+
+```
+
