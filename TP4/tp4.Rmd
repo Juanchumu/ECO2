@@ -1,8 +1,10 @@
 ---
 title: "TP4 Eco2"
-author: ""
+author: ''
 date: "2025-04-21"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -18,7 +20,185 @@ library(reticulate)
 use_virtualenv("~/virtual-env")
 library(tibble)
 
+#install.packages("hopkins")
+library(hopkins)
+
+
+
+
 ```
+
+
+
+```{r}
+# Coordenadas para cada acetato (por ejemplo, 3 acetatos)
+
+acetatos <- list(
+  #Martin
+  acetato_martin_1 = data.frame(
+    x = c(4.5, 2),
+    y = c(1.5, 4)
+  ),
+  acetato_martin_2 = data.frame(
+    x = c(1.5, 5.5, 8, 2, 5.5),
+    y = c(1.5, 1.5, 5, 7, 7)
+  ),
+  acetato_martin_3 = data.frame(
+    x = c(1.5),
+    y = c(2.5)
+  ),
+  acetato_martin_4 = data.frame(
+    x = c(6.5, 2),
+    y = c(1.5, 6)
+  ),
+  acetato_martin_5 = data.frame(
+    x = c(7),
+    y = c(3.5)
+  ),
+  acetato_martin_8 = data.frame(
+    x = c(4  , 1, 5.5, 8 , 3.5, 1.5  ),
+    y = c(1.5, 3, 5,  4.5, 8,   6.5)
+  ),
+  acetato_juan_1 = data.frame(
+    x = c(3.5),
+    y = c(3.5)
+  ),
+  acetato_juan_2 = data.frame(
+    x = c(3.5),
+    y = c(8)
+  ),
+  acetato_juan_3 = data.frame(
+    x = c(3, 3),
+    y = c(6, 8)
+  ),
+  acetato_juan_4 = data.frame(
+    x = c(1, 1),
+    y = c(1, 7.5)
+  ),
+  acetato_juan_6 = data.frame(
+    x = c(6),
+    y = c(3)
+  ),
+  acetato_juan_7 = data.frame(
+    x = c(5),
+    y = c(1.5)
+  ),
+  acetato_juan_8 = data.frame(
+    x = c(8),
+    y = c(3.5)
+  ),
+  acetato_francisco_1 = data.frame(
+    x = c(4, 2),
+    y = c(1.5, 4)
+  ),
+  acetato_francisco_2 = data.frame(
+    x = c(1.5, 5.5, 2, 5.5),
+    y = c(1.5, 1, 7, 7)
+  ),
+  acetato_francisco_3 = data.frame(
+    x = c(1.5),
+    y = c(2.5)
+  ),
+  acetato_francisco_4 = data.frame(
+    x = c(6.5, 2),
+    y = c(1.5, 6)
+  ),
+  acetato_francisco_5 = data.frame(
+    x = c(1.5,1.5, 1,6.5),
+    y = c(2  ,5  , 7,1.5)
+  ),
+  acetato_francisco_8 = data.frame(
+    x = c(4, 5.5, 8, 2,5),
+    y = c(1.5, 4.5, 4, 7.5,8)
+  ),
+  acetato_facu_1 = data.frame(
+    x = c(5.5, 1,5.5,3.5,8,5.5),
+    y = c(1.5, 2,4  ,5.5,4,8)
+  ),
+  acetato_facu_2 = data.frame(
+    x = c(6.5, 3  ,5.5,2),
+    y = c(1  , 3.5,6.5,8)
+  ),
+  acetato_facu_4 = data.frame(
+    x = c(1.5,7.5,2.5,1.5),
+    y = c(1.5,1.5,4.5,7.5)
+  ),
+  acetato_facu_6 = data.frame(
+    x = c(1.5, 7.5,3.5,7.5,8),
+    y = c(1, 1.5,3.5,4.5,8)
+  ),
+  acetato_facu_7 = data.frame(
+    x = c(2, 5  , 7.5,3,7,8,2 ),
+    y = c(2, 1.5,1.5,4.5,5,8,7.5)
+  ),
+  acetato_facu_8 = data.frame(
+    x = c(1.5, 4  ,6  ,7  ),
+    y = c(2  , 2.5,3.5,6.5)
+  )
+)
+
+#restarle 1 para que arranque bien en 0,0
+acetatos <- lapply(acetatos, function(df) {
+  df$x <- df$x - 1
+  df$y <- df$y - 1
+  return(df)
+})
+
+
+```
+
+```{r}
+
+#hopkins() necesita al menos 2 puntos para calcular distancias, 
+#por eso se filtran con nrow(x) > 1.
+acetatos_validos <- Filter(function(x) is.data.frame(x) && nrow(x) > 1, acetatos)
+resultados <- lapply(acetatos_validos, hopkins)
+
+```
+
+```{r}
+interpretar_hopkins <- function(valor) {
+  if (valor < 0.25) {
+    return("Regular")
+  } else if (valor <= 0.75) {
+    return("Aleatorio")
+  } else {
+    return("Agrupado")
+  }
+}
+
+```
+
+
+```{r}
+nombres <- names(resultados)
+
+# Convertir a vector
+valores <- unlist(resultados)
+
+# Categorizar cada valor
+categorias <- sapply(valores, interpretar_hopkins)
+
+# Combinar en un data frame
+resultado_final <- data.frame(
+  Acetato = nombres,
+  Hopkins = valores,
+  Patron = categorias
+)
+
+print(resultado_final)
+
+```
+
+```{r}
+```
+
+```{r}
+```
+
+
+
+
 
 
 ```{r}
